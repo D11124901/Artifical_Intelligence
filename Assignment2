@@ -1,0 +1,85 @@
+#Stephen O'Keeffe
+#D11124901
+
+def main():
+        #Importing sklearn api , numpy and pandas
+        from sklearn import tree
+        from sklearn import cross_validation
+        from sklearn.feature_extraction import DictVectorizer
+        import numpy as np
+        import pandas as pd
+
+        #list the column headers of the dataset                 
+        column_headings = ['id','Elevation','Aspect','Slope','Horizontal_Distance_To_Hydrology','Vertical_Distance_To_Hydrology'
+                ,'Horizontal_Distance_To_Roadways','Hillshade_9am','Hillshade_Noon','Hillshade_3pm','Horizontal_Distance_To_Fire_Points'
+                ,'Rawah_Wilderness_Area','Neota_Wilderness_Area','Comanche_Peak_Wilderness_Area','Cache_la_Poudre_Wilderness_Area','Soil_Type_1','Soil_Type_2'
+                ,'Soil_Type_3','Soil_Type_4','Soil_Type_5','Soil_Type_6','Soil_Type_7','Soil_Type_8','Soil_Type_9','Soil_Type_10','Soil_Type_11','Soil_Type_12','Soil_Type_13'
+                ,'Soil_Type_14','Soil_Type_15','Soil_Type_16','Soil_Type_17','Soil_Type_18','Soil_Type_19','Soil_Type_20','Soil_Type_21','Soil_Type_22','Soil_Type_23','Soil_Type_24'
+                ,'Soil_Type_25','Soil_Type_26','Soil_Type_27','Soil_Type_28','Soil_Type_29','Soil_Type_30','Soil_Type_31'
+                ,'Soil_Type_32','Soil_Type_33','Soil_Type_34','Soil_Type_35','Soil_Type_36','Soil_Type_37','Soil_Type_38','Soil_Type_39','Soil_Type_40','Cover_Type']
+
+        #Read the training set data from a local file
+        ts_data = pd.read_csv("data/trainingset.txt",header=None,names=column_headings,index_col=False,na_values=['?'],nrows=435148)                              
+        #Extract Target Feature
+        targetLabels = ts_data['Cover_Type']
+        #Extract Numeric Descriptive Features
+        numeric_features = ['Elevation','Aspect','Slope','Horizontal_Distance_To_Hydrology','Vertical_Distance_To_Hydrology',
+                    'Horizontal_Distance_To_Roadways','Hillshade_9am','Hillshade_Noon','Hillshade_3pm','Horizontal_Distance_To_Fire_Points']
+        numeric_dfs = ts_data[numeric_features]
+        #Extract Categorical Descriptive Features for data set
+        cat_dfs = ts_data.drop(numeric_features + ['id'] + ['Cover_Type'],axis=1)
+        #Remove missing values
+        cat_dfs.replace('?','NA')
+        cat_dfs.fillna( 'NA', inplace = True )
+        #Transpose into array of dictionaries for each feature
+        cat_dfs = cat_dfs.T.to_dict().values()
+        #Convert to numeric encoding
+        vectorizer = DictVectorizer( sparse = False )
+        vec_cat_dfs = vectorizer.fit_transform(cat_dfs) 
+        #Merge Categorical and Numeric Descriptive Features
+        train_dfs = np.hstack((numeric_dfs.as_matrix(), vec_cat_dfs ))
+
+        #---------------------------------------------------------------
+        # Create and train a decision tree model using sklearn api
+        #---------------------------------------------------------------
+        #Create an instance of a decision tree model.
+        decTreeModel = tree.DecisionTreeClassifier(criterion='entropy')
+        #Fit the model using the numeric representations of the training data
+        decTreeModel.fit(train_dfs, targetLabels)
+
+        #---------------------------------------------------------------
+        # Define Queries, Make Predictions, Map Predictions to Levels
+        #---------------------------------------------------------------
+        #Read the test data from a local file
+        q = pd.read_csv("data/queries.txt",header=None,names=column_headings,index_col=False,na_values=['?'],nrows=145864)                              
+        #Extract the test ids for printing later on
+        q_id = q['id']
+        q_num_dfs = q[numeric_features]
+        #Extract Categorical Descriptive Features for data set
+        q_cat_dfs = q.drop(numeric_features + ['id'] + ['Cover_Type'],axis=1)
+        #Remove missing values
+        q_cat_dfs.replace('?','NA')
+        q_cat_dfs.fillna( 'NA', inplace = True )
+        #Transpose into array of dictionaries for each feature
+        q_cat_dfs = q_cat_dfs.T.to_dict().values()
+        #Convert to numeric encoding
+        vectorizer = DictVectorizer( sparse = False )
+        q_vec_cat_dfs = vectorizer.fit_transform(q_cat_dfs) 
+        #Merge Categorical and Numeric Descriptive Features
+        query = np.hstack((q_num_dfs.as_matrix(), q_vec_cat_dfs ))
+        #Use the model to make predictions for the queries
+        predictions = decTreeModel.predict(query)
+
+        #--------------------------------------------------------------
+        # Create and write the output for predictions to a .txt file with the test id
+        #---------------------------------------------------------------
+        fout = open("solutions/D11124901.txt", "wt");
+        for i in range(0,len(predictions)):
+            fout.write(str(q_id[i]))
+            fout.write(",")
+            fout.write(str(predictions[i]))
+            fout.write("\n")
+        fout.close()
+
+if __name__ == '__main__':
+    main()
